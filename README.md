@@ -22,7 +22,7 @@ CVE-2023-46191, CVE-2023-46192, CVE-2023-46193
 # downloader.py
 
 ## Usage
-```
+```bash
 # 특정 키워드로 검색
 python3 downloader.py --keyword security seo backup
 
