@@ -34,6 +34,26 @@ python3 downloader.py -k elementor gutenberg wordpress
 
 # 기본 키워드 사용 (플래그 없이)
 python3 downloader.py
+
+# 기본 키워드
+DEFAULT_TARGETS = [
+    "admin", "ads", "affiliate", "AI", "ajax", "analytics", "api", "block", 
+    "blocks", "buddypress", "button", "cache", "calendar", "categories", 
+    "category", "chat", "checkout", "code", "comment", "comments", "contact", 
+    "contact form", "contact form 7", "content", "css", "custom", "dashboard", 
+    "e-commerce", "ecommerce", "editor", "elementor", "email", "embed", 
+    "events", "facebook", "feed", "form", "forms", "gallery", "gateway", 
+    "google", "gutenberg", "image", "images", "import", "javascript", "jquery", 
+    "link", "links", "login", "marketing", "media", "menu", "mobile", 
+    "navigation", "news", "newsletter", "notification", "page", "pages", 
+    "payment", "payment gateway", "payments", "performance", "photo", "photos", 
+    "plugins", "popup", "post", "posts", "products", "redirect", "responsive", 
+    "rss", "search", "security", "seo", "share", "shipping", "shortcode", 
+    "shortcodes", "sidebar", "slider", "slideshow", "social", "social media", 
+    "spam", "statistics", "stats", "tags", "theme", "tracking", "twitter", 
+    "user", "users", "video", "widget", "widgets", "woocommerce", "youtube"
+]
+
 ```
 
 
