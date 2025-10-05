@@ -19,6 +19,24 @@ CVE-2023-46089, CVE-2023-46090, CVE-2023-46091, CVE-2023-46092, CVE-2023-46093,
 CVE-2023-46191, CVE-2023-46192, CVE-2023-46193
 ```
 
+# downloader.py
+
+## Usage
+```
+# 특정 키워드로 검색
+python3 downloader.py --keyword security seo backup
+
+# 공백 포함 키워드
+python3 downloader.py --keyword "contact form" "payment gateway" woocommerce
+
+# 짧은 플래그 사용
+python3 downloader.py -k elementor gutenberg wordpress
+
+# 기본 키워드 사용 (플래그 없이)
+python3 downloader.py
+```
+
+
 # Setting up WordPress with Docker
 
 ## Basic WordPress Docker Setup
