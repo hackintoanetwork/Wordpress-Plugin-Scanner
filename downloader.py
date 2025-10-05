@@ -2,17 +2,30 @@ import os
 import time
 import random
 import requests
+import argparse
 import concurrent.futures
 from bs4 import BeautifulSoup
 from multiprocessing import Pool, Manager, cpu_count
 
-colors = [
-    '\033[91m', '\033[92m', '\033[93m', '\033[94m', '\033[95m',
-    '\033[96m', '\033[90m', '\033[97m', '\033[91m', '\033[92m'
-]
-RESET = '\033[0m'
+class Colors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    GRAY = '\033[90m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+    RESET = '\033[0m'
 
-save_dir = "/Users/sh/Downloads"
+colors = [
+    Colors.RED, Colors.GREEN, Colors.YELLOW, Colors.BLUE, Colors.MAGENTA,
+    Colors.CYAN, Colors.GRAY, Colors.WHITE, Colors.RED, Colors.GREEN
+]
+
+save_dir = os.path.expanduser("~/wp-plugins")
 
 USER_AGENTS = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -32,7 +45,7 @@ USER_AGENTS = [
     'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 OPR/105.0.0.0',
 ]
 
-TARGETS = [
+DEFAULT_TARGETS = [
     "admin", "ads", "affiliate", "AI", "ajax", "analytics", "api", "block", 
     "blocks", "buddypress", "button", "cache", "calendar", "categories", 
     "category", "chat", "checkout", "code", "comment", "comments", "contact", 
@@ -51,13 +64,13 @@ TARGETS = [
 ]
 
 def get_random_user_agent():
-    """랜덤 User-Agent 반환 (단순 버전)"""
     return {'User-Agent': random.choice(USER_AGENTS)}
 
 def get_existing_folders(save_dir):
     existing_folders = set()
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+        print(f"{Colors.CYAN}Directory created: {save_dir}{Colors.RESET}\n")
     for folder_name in os.listdir(save_dir):
         if os.path.isdir(os.path.join(save_dir, folder_name)):
             existing_folders.add(folder_name)
@@ -72,7 +85,6 @@ def download_plugin(args):
         try:
             time.sleep(random.uniform(0.1, 0.3))
             
-            # 매번 다른 User-Agent 사용
             headers = get_random_user_agent()
             response = requests.get(link, headers=headers, timeout=10)
             response.raise_for_status()
@@ -81,40 +93,39 @@ def download_plugin(args):
             download_button = soup.find('a', {'class': 'wp-block-button__link wp-element-button'})
             
             if not download_button or 'href' not in download_button.attrs:
-                return f"⚠️  다운로드 링크 없음: {link}"
+                return f"{Colors.YELLOW}[WARN] Download link not found: {link}{Colors.RESET}"
             
             download_link = download_button['href']
             file_name = download_link.split('/')[-1]
             folder_name = file_name.rsplit('.', 1)[0]
 
             if folder_name in existing_folders_set:
-                return f"⏭️  스킵: {folder_name}"
+                return f"{Colors.GRAY}[SKIP] {folder_name}{Colors.RESET}"
 
             time.sleep(random.uniform(0.1, 0.3))
             save_path = os.path.join(save_dir, file_name)
             
-            # 다운로드도 다른 User-Agent
             download_headers = get_random_user_agent()
             file_response = requests.get(download_link, headers=download_headers, timeout=20)
             file_response.raise_for_status()
             
             with open(save_path, 'wb') as f:
                 f.write(file_response.content)
-            return f'✅ Downloaded: {file_name}'
+            return f'{Colors.GREEN}[OK] Downloaded: {file_name}{Colors.RESET}'
             
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
                 wait_time = (attempt + 1) * 8 + random.uniform(3, 8)
-                print(f"⏳ 429 에러 - {wait_time:.1f}초 대기...")
+                print(f"{Colors.MAGENTA}[WAIT] 429 error - waiting {wait_time:.1f}s...{Colors.RESET}")
                 time.sleep(wait_time)
             else:
-                return f"❌ HTTP {e.response.status_code}: {link}"
+                return f"{Colors.RED}[ERROR] HTTP {e.response.status_code}: {link}{Colors.RESET}"
         except Exception as e:
             if attempt == retry_count - 1:
-                return f"❌ 실패: {link}"
+                return f"{Colors.RED}[ERROR] Failed: {link}{Colors.RESET}"
             time.sleep(random.uniform(1, 3))
     
-    return f"❌ 재시도 실패: {link}"
+    return f"{Colors.RED}[ERROR] Retry failed: {link}{Colors.RESET}"
 
 def download_plugins_on_page(args):
     page_num, target, existing_folders_set = args
@@ -126,7 +137,6 @@ def download_plugins_on_page(args):
         try:
             time.sleep(random.uniform(0.5, 1.0))
             
-            # 페이지 요청도 랜덤 User-Agent
             headers = get_random_user_agent()
             response = requests.get(url, headers=headers, timeout=10)
             response.raise_for_status()
@@ -138,7 +148,6 @@ def download_plugins_on_page(args):
 
             links = [plugin.find('a')['href'] for plugin in plugins if plugin.find('a')]
             
-            # 동시 다운로드
             with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
                 download_args = [(link, existing_folders_set, 3) for link in links]
                 results = list(executor.map(download_plugin, download_args))
@@ -150,14 +159,14 @@ def download_plugins_on_page(args):
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 429:
                 wait_time = (attempt + 1) * 15 + random.uniform(5, 10)
-                print(f"⏳ 페이지 429 - {wait_time:.1f}초 대기...")
+                print(f"{Colors.MAGENTA}[WAIT] Page 429 error - waiting {wait_time:.1f}s...{Colors.RESET}")
                 time.sleep(wait_time)
             else:
-                print(f"❌ 페이지 {page_num} ({target}) HTTP {e.response.status_code}")
+                print(f"{Colors.RED}[ERROR] Page {page_num} ({target}) HTTP {e.response.status_code}{Colors.RESET}")
                 return []
         except Exception as e:
             if attempt == 1:
-                print(f"❌ 페이지 {page_num} ({target}) 실패: {e}")
+                print(f"{Colors.RED}[ERROR] Page {page_num} ({target}) failed: {e}{Colors.RESET}")
                 return []
             time.sleep(random.uniform(2, 5))
     
@@ -167,30 +176,67 @@ def download_plugins_for_target(args):
     target, color_code, existing_folders_set = args
     
     print(f"\n{'='*50}")
-    print(f"{color_code}🎯 '{target}' 검색 시작{RESET}")
+    print(f"{color_code}[START] Searching for '{target}'{Colors.RESET}")
     print(f"{'='*50}")
     
     total_downloaded = 0
     
-    # 페이지를 순차 처리로 변경 (안정성 향상)
     for page_num in range(1, 51):
         links = download_plugins_on_page((page_num, target, existing_folders_set))
         if links:
             total_downloaded += len(links)
-            print(f'{color_code}✓ 페이지 {page_num} 완료 ({len(links)}개) - {target}{RESET}')
+            print(f'{color_code}[DONE] Page {page_num} completed ({len(links)} plugins) - {target}{Colors.RESET}')
             time.sleep(random.uniform(1, 3))
         else:
             break
     
-    print(f'{color_code}🏁 {target} 완료 - 총 {total_downloaded}개 처리{RESET}')
+    print(f'{color_code}[FINISH] {target} completed - Total: {total_downloaded} plugins{Colors.RESET}')
     return target, total_downloaded
 
+def parse_arguments():
+    """Parse command line arguments"""
+    parser = argparse.ArgumentParser(
+        description='WordPress Plugin Downloader',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=f"""
+Examples:
+  {Colors.CYAN}# Download plugins for specific keywords{Colors.RESET}
+  python3 downloader.py --keyword security seo backup
+
+  {Colors.CYAN}# Download plugins for all default keywords{Colors.RESET}
+  python3 downloader.py
+
+  {Colors.CYAN}# Multiple keywords with spaces{Colors.RESET}
+  python3 downloader.py --keyword "contact form" "payment gateway" security
+        """
+    )
+    
+    parser.add_argument(
+        '--keyword', '-k',
+        nargs='+',
+        help='Specify keywords to search for plugins (space-separated)',
+        metavar='KEYWORD'
+    )
+    
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    print("\n" + "="*50)
-    print("🔽 플러그인 다운로드 시작")
-    print(f"📊 총 {len(TARGETS)}개 키워드")
-    print(f"🎭 {len(USER_AGENTS)}개의 User-Agent 사용")
-    print("="*50 + "\n")
+    args = parse_arguments()
+    
+    if args.keyword:
+        TARGETS = args.keyword
+        print(f"{Colors.YELLOW}[INFO] Using custom keywords: {', '.join(TARGETS)}{Colors.RESET}\n")
+    else:
+        TARGETS = DEFAULT_TARGETS
+        print(f"{Colors.YELLOW}[INFO] Using default keywords ({len(DEFAULT_TARGETS)} keywords){Colors.RESET}\n")
+    
+    print(f"{Colors.BOLD}{Colors.BLUE}{'='*50}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BLUE}WordPress Plugin Downloader{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BLUE}{'='*50}{Colors.RESET}")
+    print(f"{Colors.CYAN}Save Path: {Colors.WHITE}{save_dir}{Colors.RESET}")
+    print(f"{Colors.CYAN}Keywords: {Colors.WHITE}{len(TARGETS)}{Colors.RESET}")
+    print(f"{Colors.CYAN}User-Agents: {Colors.WHITE}{len(USER_AGENTS)}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.BLUE}{'='*50}{Colors.RESET}\n")
     
     existing_folders = get_existing_folders(save_dir)
     manager = Manager()
@@ -206,9 +252,10 @@ if __name__ == "__main__":
     with Pool(processes=num_processes) as pool:
         results = pool.map(download_plugins_for_target, target_args)
     
-    print("\n" + "="*50)
-    print("✅ 모든 다운로드 완료!")
-    print("="*50)
+    print(f"\n{Colors.BOLD}{Colors.GREEN}{'='*50}{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.GREEN}All downloads completed!{Colors.RESET}")
+    print(f"{Colors.BOLD}{Colors.GREEN}{'='*50}{Colors.RESET}")
     
     total = sum(count for _, count in results)
-    print(f"\n📈 총 처리된 플러그인: {total}개")
+    print(f"{Colors.CYAN}Total plugins processed: {Colors.WHITE}{total}{Colors.RESET}")
+    print(f"{Colors.CYAN}Saved to: {Colors.WHITE}{save_dir}{Colors.RESET}")
